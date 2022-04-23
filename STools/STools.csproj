@@ -47,6 +47,9 @@
     <Reference Include="Controller">
       <HintPath>C:\Program Files\Focus Software\Focus Konstruksjon 2016\Controller.dll</HintPath>
     </Reference>
+    <Reference Include="CrossSectionPlugin">
+      <HintPath>..\..\..\Program Files\Focus Software\Focus Konstruksjon 2016\tools\CrossSectionPlugin.dll</HintPath>
+    </Reference>
     <Reference Include="Framework">
       <HintPath>C:\Program Files\Focus Software\Focus Konstruksjon 2016\Framework.dll</HintPath>
     </Reference>
@@ -87,6 +90,7 @@
     <Compile Include="PageSTools\Buttons\BarItemBtnMoveJoint.cs" />
     <Compile Include="PageSTools\Buttons\BarItemBtnListen.cs" />
     <Compile Include="PageSTools\Buttons\BarItemBtnRunAnalysis.cs" />
+    <Compile Include="PageSTools\Buttons\Class1.cs" />
     <Compile Include="PageSTools\Groups\RibbonGroupAI.cs" />
     <Compile Include="PageSTools\Groups\RibbonGroupOther.cs" />
     <Compile Include="PageSTools\RibbonPageSTools.cs" />

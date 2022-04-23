@@ -1,10 +1,15 @@
-﻿using Genius3D.Commands;
+﻿using CrossSectionPlugin;
+using Genius3D.Commands;
 using Genius3D.Framework;
 using Genius3D.Interfaces;
+using Genius3D.Model;
 using Genius3D.UtilitiesBasic;
 using Genius3D.UtilitiesDependent;
 using KUtilities;
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 
@@ -31,41 +36,96 @@ namespace STools.PageSTools.Buttons
 				MessageBox.Show("Controller = null");
 				return;
 			}
-			
+
+			//    >>>>>        READ TEXTFILE FROM RL-ALGORITHM             <<<<<
+
+			int counter = 0;
+			string readPath = @"C:\testfolder\utskrift.txt";
+			List<string[]> readInfo = new List<string[]>();
+
+			foreach (string line in File.ReadLines(readPath))
+			{
+				//Console.WriteLine(line);
+				string[] par = line.Split(' ');
+				counter++;
+				readInfo.Add(par);
+			}
+
+			string[][] pI = readInfo.ToArray();						// profileInfo
+			List<CrossSection> pL = new List<CrossSection>();       // profileList
+
+			NumberFormatInfo provider = new NumberFormatInfo();
+			provider.NumberDecimalSeparator = ".";
+			for (int i = 0; i < counter; i++)
+			{
+
+				// Check if I-profile
+				if (Int32.Parse(pI[i][0]) == 0)
+				{
+					// is I-profile
+					IMCrossSectionI tempI = new CrossSectionIBeam();
+					tempI.H = Convert.ToDouble(pI[i][2], provider) / 10e2; tempI.B = Convert.ToDouble(pI[i][3], provider) / 10e2;
+					tempI.S = Convert.ToDouble(pI[i][4], provider) / 10e2; tempI.T = Convert.ToDouble(pI[i][5], provider) / 10e2;
+					tempI.R = Convert.ToDouble(pI[i][6], provider) / 10e2;
+
+					var temp = tempI as CrossSection;
+					temp.CrossSectTypeID = 100; temp.ComputeAutomaticCrsParams = false;
+					temp.Name = pI[i][1]; temp.Area = Convert.ToDouble(pI[i][7], provider) / 10e5;
+					temp.Cw = Convert.ToDouble(pI[i][9], provider) / 10e17;	temp.Ix = Convert.ToDouble(pI[i][8], provider) / 10e11;
+					temp.Riy = Convert.ToDouble(pI[i][10], provider) / 10e2; temp.Iy = Convert.ToDouble(pI[i][11], provider) / 10e11;
+					temp.Riz = Convert.ToDouble(pI[i][12], provider) / 10e2; temp.Iz = Convert.ToDouble(pI[i][13], provider) / 10e11;
+					temp.Sy = Convert.ToDouble(pI[i][14], provider) / 10e8; temp.Wy = Convert.ToDouble(pI[i][15], provider) / 10e8;
+					temp.Wz = Convert.ToDouble(pI[i][16], provider) / 10e8;
+					pL.Add(temp);
+				}
+				else
+                {
+					// is HUP
+					CrossSectionKFHUP tempI = new CrossSectionKFHUP(); tempI.Name = pI[i][1];
+					tempI.H = Convert.ToDouble(pI[i][2], provider) / 10e2; tempI.B = Convert.ToDouble(pI[i][3], provider) / 10e2;
+					tempI.T = Convert.ToDouble(pI[i][4], provider) / 10e2; tempI.Area = Convert.ToDouble(pI[i][5], provider) / 10e5;
+					tempI.Ix = Convert.ToDouble(pI[i][6], provider) / 10e11; tempI.Riy = Convert.ToDouble(pI[i][7], provider) / 10e2;
+					tempI.Iy = Convert.ToDouble(pI[i][8], provider) / 10e11; tempI.Riz = Convert.ToDouble(pI[i][9], provider) / 10e2;
+					tempI.Iz = Convert.ToDouble(pI[i][10], provider) / 10e11; tempI.Wpy = Convert.ToDouble(pI[i][11], provider) / 10e8;
+					tempI.Wpz = Convert.ToDouble(pI[i][12], provider) / 10e8; tempI.Wy = Convert.ToDouble(pI[i][13], provider) / 10e8;
+					tempI.Wz = Convert.ToDouble(pI[i][14], provider) / 10e8;
+					var temp = tempI as CrossSection;
+					pL.Add(temp);
+				}
+			}
+
+			//        >>>>>     Change the cross sections       <<<<<
+
 			var cmdModelListGet = new MCmdObjectsAllGet("Segments");
 			controller.Do(cmdModelListGet);
 			IUList segments = cmdModelListGet.ModelList;
 
 			MessageBox.Show("Antal segmenter: " + segments.Count.ToString());    // ------> "Antall segmenter: 10"
-			/*
+
+			List<IMCrossSection> Xsections = new List<IMCrossSection>();
 			foreach (IMSegment temp in segments)
             {
-				var cmdSegmentUpdate = new MCmdSegmentCrossSectSet(temp.ID, null, false);
-				controller.Do(cmdSegmentUpdate);
-				controller.ForceModelUpdate();
+				Xsections.Add(temp.CrossSect1);
 			}
-			*/
-			
-			MessageBox.Show("Før IUHashTable");
-			IUHashTable hashtableExtdata = controller.ExtensionData;
-			
-			foreach (DictionaryEntry kvp in hashtableExtdata)
-				MessageBox.Show("Key: " + kvp.Key.ToString() + "Value: " + kvp.Value.ToString());
 
-			FSectionViewInfo cmdTverrsnitt = (FSectionViewInfo)controller.ExtensionData["SectionViewInfos"];
-			MessageBox.Show("Etter cast");
+			// Lager 3 grupper. Gruppe 1 er overgurt, 2 er undergurt, og 3 er stavene
+			int j = 0;
+			foreach (IMSegment temp in segments)
+            {
+				if (j < 2)
+				{
+					var cmdSegmentUpdate = new MCmdSegmentCrossSectSet(temp.ID, pL[j], false);
+					controller.Do(cmdSegmentUpdate);
+				}
+				else
+                {
+					var cmdSegmentUpdate = new MCmdSegmentCrossSectSet(temp.ID, pL[2], false);
+					controller.Do(cmdSegmentUpdate);
+				}
+				j++;
+            }
 
-			MessageBox.Show(cmdTverrsnitt.ToString());      // ----------> "System.Collections.Generic.List'1[Genius3D.Framework.FSectionViewInfo]"
-	
-			
-			
-			// IUList Xsec = controller.Model.AvailableCrossSects;
-			var cmdProfilesListGet = new MCmdObjectsAllGet("AvailableCrossSects");
-			controller.Do(cmdProfilesListGet);
-			IUList profiles = cmdProfilesListGet.ModelList;
-			//MessageBox.Show(profiles.FirstItem.ToString());
-
-			MessageBox.Show(profiles.Count.ToString());        // ---------->  0 med MCmcObjects... "CrossSections" og "AvailableCrossSects"
+			//          >>>>>     Run the analysis           <<<<<
 
 			var activeAnalysis = controller.ActiveAnalysis;
 			if (!activeAnalysis.CanCompute)
@@ -83,31 +143,21 @@ namespace STools.PageSTools.Buttons
             {
 				MessageBox.Show("Success");
 				var max_deformation = activeAnalysis.ResultsModel.Summary.Displacement.Translation.GetLength();
-				MessageBox.Show(max_deformation.ToString());
 
-				string path = @"C:\output\Example.txt";
+				string writePath = @"C:\output\Example.txt";
 
-				if (!File.Exists(path))
+				if (!File.Exists(writePath))
 				{
-					File.Create(path).Dispose();
+					File.Create(writePath).Dispose();
 
-					using (TextWriter tw = new StreamWriter(path, false))
+					using (TextWriter tw = new StreamWriter(writePath, false))
 					{
 						tw.WriteLine("The first line");
 					}
 
 				}
-				else if (File.Exists(path))
+				else if (File.Exists(writePath))
 				{
-
-
-					/*     
-					var firstSegment = segments.FirstItem as IMSegment; <------- Skal erstattes via geometrimodell eller at python vet l
-					IMRefLine refLine = firstSegment.RefLine;
-					double lengde = refLine.GetLength();
-					
-
-
 
 					var results = activeAnalysis.ResultsModel as IAResultsModel;
 					var resultsSegments = results.ResultsSegment as Dictionary<UID, IAResultsSegment>;
@@ -115,34 +165,34 @@ namespace STools.PageSTools.Buttons
 					foreach(KeyValuePair<UID, IAResultsSegment> entry in resultsSegments)
                     {
 						IDDesignResultSegment tempEntry = entry.Value.DesignCheckResults;
-						
-						IDDesignResultSection tempKap = tempEntry.WorstResult; // <---------- Denne virker ikke
+
+						var tempKap = tempEntry.WorstResult.Results; // <---------- Denne virker ikke
 						MessageBox.Show("Før tempWorst");
-						IDDesignResult tempWorst = tempKap.WorstResult;
+						//IDDesignResult tempWorst = tempKap.WorstResult;
 						MessageBox.Show("Før twfm");
-						double tempWorstForMember = tempWorst.Value;
-						MessageBox.Show(tempWorstForMember.ToString());
+						//double tempWorstForMember = tempWorst.Value;
+						//MessageBox.Show(tempWorstForMember.ToString());
 
 						
-						IDDesignResultSection[] tempKap = tempEntry.Results;
-						foreach(IDDesignResult i in tempKap)    <------------ Virker heller ikke i vektor-format
+						IDDesignResultSection[] tempKap2 = tempEntry.Results;
+						foreach(IDDesignResult i in tempKap2)   // <------------ Virker heller ikke i vektor-format
                         {
 							MessageBox.Show("Før double j");
-							double j = i.Value;
-							MessageBox.Show(j.ToString());
+							double k = i.Value;
+							MessageBox.Show(k.ToString());
 
                         }
 						
 					} 
-					*/
+					
 
-					// >>>> eksempel på hvordan å hente ut kapasitetsutnyttelse fra et segment
+					// >>>> eksempel på hvordan å hente ut kapasitetsutnyttelse fra et segment   <<<<
 
 					double egenvekt = activeAnalysis.ResultsModel.GetMinResultants()[2]; // enhet: N 
 
-					using (TextWriter tw = new StreamWriter(path, true))
+					using (TextWriter tw = new StreamWriter(writePath, true))
 					{
-
+						var jk = activeAnalysis.ResultsModel.ResultsSegment;
 						tw.Write("Egenvekt fagverk: " + egenvekt.ToString().Substring(0,8) + "N, maks deformasjon: " + (1000*max_deformation).ToString() +"mm\n");
 						// -----> printer ut egenvekt i N og maks deformasjon i mm + linjeskift
 						//tw.WriteLine(max_deformation + " " + lengde + " " + kapasitetVektor.toString() + " " + egenvekt);
@@ -158,7 +208,7 @@ namespace STools.PageSTools.Buttons
 
 		public override void OnDoCommand(object sender, UEventArgs args)
 		{
-			MessageBox.Show("Lytter");
+			// MessageBox.Show("Lytter");
 			var fileSystemWatcher = new FileSystemWatcher(@"C:\testfolder\")
             {
 				Filter = "*.*",
@@ -168,13 +218,6 @@ namespace STools.PageSTools.Buttons
 
 			fileSystemWatcher.Changed += OnChanged;
 
-        }
-
-        public void AILayers(double length, double permLast, double varLast)
-        {
-			// Her må jeg laste lage klasse for neuroner og aktiveringsfunksjoner som leser verdier fra .csv eller at jeg taster inne noe manuelt.
-			// Eventuelt dra inn et python-skript, men jeg er usikker på hele prosessen med kompilering osv. 
-			return;
         }
 	}
 }

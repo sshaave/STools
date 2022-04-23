@@ -34,6 +34,7 @@ namespace STools.PageSTools.Buttons
 			controller.Do(cmdCommand);
 			IUList segments = cmdCommand.ModelList;
 			MessageBox.Show("Joints metode 2: " + segments.Count.ToString());  // -------> "2"
+			MessageBox.Show(segments.LastItem.ToString());
 
 			var cmdMoveJoint = new MCmdJointMove(firstjoint.ID, new UVector3D(0, 0, 10));
 			controller.Do(cmdMoveJoint);
