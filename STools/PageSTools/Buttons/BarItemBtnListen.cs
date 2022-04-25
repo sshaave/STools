@@ -100,7 +100,7 @@ namespace STools.PageSTools.Buttons
 			controller.Do(cmdModelListGet);
 			IUList segments = cmdModelListGet.ModelList;
 
-			MessageBox.Show("Antal segmenter: " + segments.Count.ToString());    // ------> "Antall segmenter: 10"
+			//MessageBox.Show("Antal segmenter: " + segments.Count.ToString());    // ------> "Antall segmenter: 10"
 
 			List<IMCrossSection> Xsections = new List<IMCrossSection>();
 			foreach (IMSegment temp in segments)
@@ -143,6 +143,7 @@ namespace STools.PageSTools.Buttons
             {
 				MessageBox.Show("Success");
 				var max_deformation = activeAnalysis.ResultsModel.Summary.Displacement.Translation.GetLength();
+				
 
 				string writePath = @"C:\output\Example.txt";
 
@@ -159,43 +160,35 @@ namespace STools.PageSTools.Buttons
 				else if (File.Exists(writePath))
 				{
 
+					//    >>>> Fetch utilization from each segment   <<<<
+					List<string> util = new List<string>();
 					var results = activeAnalysis.ResultsModel as IAResultsModel;
 					var resultsSegments = results.ResultsSegment as Dictionary<UID, IAResultsSegment>;
+					var en = new CultureInfo("en-US");
 					
 					foreach(KeyValuePair<UID, IAResultsSegment> entry in resultsSegments)
                     {
+						entry.Value.ComputeDesignResults();
 						IDDesignResultSegment tempEntry = entry.Value.DesignCheckResults;
-
-						var tempKap = tempEntry.WorstResult.Results; // <---------- Denne virker ikke
-						MessageBox.Show("Før tempWorst");
-						//IDDesignResult tempWorst = tempKap.WorstResult;
-						MessageBox.Show("Før twfm");
-						//double tempWorstForMember = tempWorst.Value;
-						//MessageBox.Show(tempWorstForMember.ToString());
-
-						
-						IDDesignResultSection[] tempKap2 = tempEntry.Results;
-						foreach(IDDesignResult i in tempKap2)   // <------------ Virker heller ikke i vektor-format
-                        {
-							MessageBox.Show("Før double j");
-							double k = i.Value;
-							MessageBox.Show(k.ToString());
-
-                        }
-						
+						IDDesignResult tempKap = tempEntry.WorstResult.WorstResult; // <---------- Denne virker ikke
+						util.Add(tempKap.Value.ToString("0.00", en));
 					} 
 					
 
-					// >>>> eksempel på hvordan å hente ut kapasitetsutnyttelse fra et segment   <<<<
+					// >>>> Write output to text file   <<<<
 
 					double egenvekt = activeAnalysis.ResultsModel.GetMinResultants()[2]; // enhet: N 
 
-					using (TextWriter tw = new StreamWriter(writePath, true))
+					using (TextWriter tw = new StreamWriter(writePath, false))
 					{
 						var jk = activeAnalysis.ResultsModel.ResultsSegment;
-						tw.Write("Egenvekt fagverk: " + egenvekt.ToString().Substring(0,8) + "N, maks deformasjon: " + (1000*max_deformation).ToString() +"mm\n");
-						// -----> printer ut egenvekt i N og maks deformasjon i mm + linjeskift
-						//tw.WriteLine(max_deformation + " " + lengde + " " + kapasitetVektor.toString() + " " + egenvekt);
+						// Egenvekt fagverk N -  maks deformasjon mm - util pr seg
+						tw.Write(egenvekt.ToString("0.00", en) + " " + (1000 * max_deformation).ToString("0.00", en));
+						foreach (string strUtil in util)
+                        {
+							tw.Write(" " + strUtil);
+                        }
+						tw.Write("\n");
 					}
 				}
 			}
